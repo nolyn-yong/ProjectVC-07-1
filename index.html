@@ -6,13 +6,16 @@
 <meta name="theme-color" content="#222222">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>幼兒園拍照防漏拍 Pro PWA</title>
+<title>幼兒園拍照防漏拍 Pro (AI 加強版)</title>
 
-<!-- 動態產生的 PWA Manifest (離線安裝支援) -->
+<!-- AI Face API Library -->
+<script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+
+<!-- 動態產生的 PWA Manifest -->
 <script>
   const manifest = {
-    "name": "幼兒園拍照防漏拍",
-    "short_name": "防漏拍",
+    "name": "幼兒園拍照防漏拍 Pro",
+    "short_name": "防漏拍AI",
     "start_url": "./",
     "display": "standalone",
     "background_color": "#f6f7fb",
@@ -89,17 +92,22 @@
   .badge-danger { background: #fed7d7; color: #9b2c2c; }
   .badge-warning { background: #feebc8; color: #9c4221; }
   .badge-success { background: #c6f6d5; color: #22543d; }
+  .badge-ai { background: #e0e7ff; color: #3730a3; }
   
   .btn-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .empty { text-align: center; color: #777; padding: 20px; font-size: 14px; }
   .addrow { display: flex; gap: 8px; }
   .addrow input { flex: 1; }
   
-  /* 照片預覽縮圖 */
   .photo-thumbs { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
   .thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; }
 
-  /* 歸類選擇 Modal 彈窗 */
+  /* AI matching highlights */
+  .ai-status { font-size: 12px; padding: 8px; border-radius: 8px; margin-bottom: 12px; text-align: center; }
+  .ai-status.loading { background: #e0f2fe; color: #0369a1; }
+  .ai-status.ready { background: #dcfce7; color: #15803d; }
+
+  /* Modal Popup */
   .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.6); display: none; align-items: flex-end; justify-content: center;
@@ -116,11 +124,13 @@
   .assign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 14px; }
   .assign-card {
     border: 2px solid #eee; border-radius: 12px; padding: 12px; text-align: center;
-    cursor: pointer; background: #f9f9f9; transition: all 0.15s;
+    cursor: pointer; background: #f9f9f9; transition: all 0.15s; position: relative;
   }
+  .assign-card.ai-matched { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 10px rgba(37,99,235,0.2); }
   .assign-card:active { transform: scale(0.96); background: #ebf8ff; border-color: #3182ce; }
   .assign-card .count { font-size: 12px; color: #666; margin-top: 4px; }
-  
+  .ai-badge-top { position: absolute; top: -10px; right: 8px; background: #2563eb; color: white; font-size: 10px; padding: 2px 6px; border-radius: 99px; }
+
   @media (max-width: 520px) {
     .app { padding: 12px; }
     .student { flex-direction: column; align-items: flex-start; }
@@ -130,15 +140,17 @@
 </head>
 <body>
 <div class="app">
-  <h1>📸 幼兒園拍照防漏拍 Pro (PWA)</h1>
-  <div class="sub">拍照後直接歸類給學童，數據與相片本地自動儲存。</div>
+  <h1>📸 幼兒園拍照防漏拍 Pro (AI 辨識版)</h1>
+  <div class="sub">拍照後自動辨識學童並進行歸類，數據與相片本地自動儲存。</div>
+
+  <!-- AI 狀態提示 -->
+  <div id="aiStatus" class="ai-status loading">🤖 正在載入 AI 人臉辨識模型中...</div>
 
   <!-- 相機拍攝核心按鈕 -->
   <div class="card">
-    <!-- 隱藏的系統相機 Input (直接拍攝照片) -->
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoCaptured(event)">
     <button class="camera-btn" onclick="triggerCamera()">
-      📷 開啟相機拍攝並歸類
+      📷 開啟相機拍攝並 AI 歸類
     </button>
   </div>
 
@@ -191,6 +203,9 @@
     </div>
   </div>
 
+  <!-- 隱藏的 Face Enrollment Input -->
+  <input type="file" id="enrollInput" accept="image/*" style="display:none" onchange="handleEnrollPhoto(event)">
+
   <!-- 學生名單列表 -->
   <div class="card">
     <div id="studentList"></div>
@@ -204,7 +219,7 @@
   </div>
 </div>
 
-<!-- 照片拍攝後的歸類選擇Modal -->
+<!-- 照片歸類 Modal 彈窗 -->
 <div class="modal-overlay" id="assignModal">
   <div class="modal-content">
     <h3 style="margin-top:0; margin-bottom:4px;">🎯 這張照片是哪位小朋友的？</h3>
@@ -218,19 +233,61 @@
 
 <script>
 const KEY = "kindergarten_photo_tracker_v3";
-let tempCapturedPhoto = null; // 暫存剛拍好的照片DataURL
+let tempCapturedPhoto = null;
+let enrollingStudentIndex = null;
+let isAiReady = false;
+let faceMatcher = null;
 
 let data = JSON.parse(localStorage.getItem(KEY) || '{"className":"","targetPhotos":3,"students":[]}');
 if (!data.targetPhotos) data.targetPhotos = 3;
 
-// 相容性轉譯（新增 images 陣列放照片）
 data.students = (data.students || []).map(s => ({
   name: s.name,
   photos: typeof s.photos === "number" ? s.photos : 0,
-  images: s.images || []
+  images: s.images || [],
+  descriptor: s.descriptor || null // 儲存 128D AI Face Vector
 }));
 
 let filter = "all";
+
+// --- AI 初始化與建構 ---
+async function initAI() {
+  const statusDiv = document.getElementById("aiStatus");
+  try {
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark64Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+    isAiReady = true;
+    statusDiv.className = "ai-status ready";
+    statusDiv.textContent = "🤖 AI 人臉辨識就緒（離線可用）";
+    rebuildFaceMatcher();
+  } catch (err) {
+    statusDiv.className = "ai-status";
+    statusDiv.style.background = "#fee2e2";
+    statusDiv.style.color = "#991b1b";
+    statusDiv.textContent = "⚠️ AI 模型載入失敗，將採用手動歸類模式。";
+  }
+}
+
+function rebuildFaceMatcher() {
+  if (!isAiReady) return;
+  const labeledDescriptors = [];
+  data.students.forEach((s, idx) => {
+    if (s.descriptor && s.descriptor.length === 128) {
+      const desc = new Float32Array(s.descriptor);
+      labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(String(idx), [desc]));
+    }
+  });
+
+  if (labeledDescriptors.length > 0) {
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+  } else {
+    faceMatcher = null;
+  }
+}
 
 function save() {
   try {
@@ -248,32 +305,101 @@ function triggerCamera() {
   document.getElementById("cameraInput").click();
 }
 
-// 處理相機拍攝照片
-function handlePhotoCaptured(e) {
+// 建立人臉特徵檔 (Enrollment)
+function triggerEnroll(index) {
+  enrollingStudentIndex = index;
+  document.getElementById("enrollInput").click();
+}
+
+async function handleEnrollPhoto(e) {
+  const file = e.target.files[0];
+  if (!file || enrollingStudentIndex === null) return;
+
+  const statusDiv = document.getElementById("aiStatus");
+  statusDiv.textContent = "🔄 正在分析人臉特徵...";
+
+  const img = await faceapi.bufferToImage(file);
+  const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!detection) {
+    alert("⚠️ 未能清晰偵測到人臉，請重新上傳照片。");
+  } else {
+    data.students[enrollingStudentIndex].descriptor = Array.from(detection.descriptor);
+    save();
+    rebuildFaceMatcher();
+    render();
+    alert(`成功為「${data.students[enrollingStudentIndex].name}」設定 AI 人臉特徵！`);
+  }
+
+  statusDiv.textContent = "🤖 AI 人臉辨識就緒（離線可用）";
+  e.target.value = "";
+  enrollingStudentIndex = null;
+}
+
+// 處理照片拍攝與 AI 自動辨識 matching
+async function handlePhotoCaptured(e) {
   const file = e.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(evt) {
-    tempCapturedPhoto = evt.target.result; // 將圖片轉換為 Base64 DataURL
-    openAssignModal(); // 開啟歸類選擇彈窗
-    e.target.value = ""; // 清空選取
+  reader.onload = async function(evt) {
+    tempCapturedPhoto = evt.target.result;
+    
+    let matchedIndex = null;
+    let confidence = 0;
+
+    if (isAiReady && faceMatcher) {
+      const img = await faceapi.bufferToImage(file);
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (detection) {
+        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+        if (bestMatch.label !== 'unknown') {
+          matchedIndex = parseInt(bestMatch.label, 10);
+          confidence = Math.round((1 - bestMatch.distance) * 100);
+        }
+      }
+    }
+
+    openAssignModal(matchedIndex, confidence);
+    e.target.value = "";
   };
   reader.readAsDataURL(file);
 }
 
-// 開啟歸類彈窗，顯示所有學生及其目前張數
-function openAssignModal() {
+function openAssignModal(matchedIndex = null, confidence = 0) {
   const modal = document.getElementById("assignModal");
   const grid = document.getElementById("assignGrid");
   const target = data.targetPhotos || 3;
+  const previewText = document.getElementById("capturedPreviewText");
 
-  grid.innerHTML = data.students.map((s, index) => {
+  if (matchedIndex !== null) {
+    previewText.innerHTML = `✨ <strong style="color:#2563eb;">AI 辨識匹配：${escapeHtml(data.students[matchedIndex].name)}</strong> (${confidence}% 信心度)`;
+  } else {
+    previewText.textContent = "請點選下方卡片進行歸類：";
+  }
+
+  // 將匹配對象排至第一位顯示
+  let studentIndices = data.students.map((_, i) => i);
+  if (matchedIndex !== null) {
+    studentIndices = studentIndices.filter(i => i !== matchedIndex);
+    studentIndices.unshift(matchedIndex);
+  }
+
+  grid.innerHTML = studentIndices.map(index => {
+    const s = data.students[index];
     const photos = s.photos || 0;
     const isUnder = photos < target;
+    const isMatched = index === matchedIndex;
+
     return `
-      <div class="assign-card" onclick="assignPhotoToStudent(${index})">
-        <div style="font-weight:600; font-size:15px;">${escapeHtml(s.name)}</div>
+      <div class="assign-card ${isMatched ? 'ai-matched' : ''}" onclick="assignPhotoToStudent(${index})">
+        ${isMatched ? `<div class="ai-badge-top">AI 推薦 (${confidence}%)</div>` : ''}
+        <div style="font-weight:600; font-size:15px; ${isMatched ? 'color:#2563eb;' : ''}">${escapeHtml(s.name)}</div>
         <div class="count" style="${isUnder ? 'color:#e53e3e;font-weight:bold;' : ''}">
           目前: ${photos} / ${target} 張
         </div>
@@ -289,7 +415,6 @@ function closeModal() {
   tempCapturedPhoto = null;
 }
 
-// 將相片歸類給指定學生
 function assignPhotoToStudent(index) {
   if (index >= 0 && index < data.students.length) {
     data.students[index].photos = (data.students[index].photos || 0) + 1;
@@ -324,9 +449,10 @@ function addStudent() {
     alert("這個名字已經存在囉！");
     return;
   }
-  data.students.push({ name, photos: 0, images: [] });
+  data.students.push({ name, photos: 0, images: [], descriptor: null });
   input.value = "";
   save();
+  rebuildFaceMatcher();
   render();
   input.focus();
 }
@@ -340,7 +466,7 @@ function addPhoto(index) {
 function removePhoto(index) {
   data.students[index].photos = Math.max(0, (data.students[index].photos || 0) - 1);
   if (data.students[index].images && data.students[index].images.length > data.students[index].photos) {
-    data.students[index].images.pop(); // 同步減少圖片陣列
+    data.students[index].images.pop();
   }
   save();
   render();
@@ -350,6 +476,7 @@ function deleteStudent(index) {
   if (!confirm(`確定要刪除「${data.students[index].name}」嗎？`)) return;
   data.students.splice(index, 1);
   save();
+  rebuildFaceMatcher();
   render();
 }
 
@@ -368,6 +495,7 @@ function clearStudents() {
   if (!confirm("確定要刪除全部學生名單嗎？")) return;
   data.students = [];
   save();
+  rebuildFaceMatcher();
   render();
 }
 
@@ -399,12 +527,13 @@ function importCSV(e) {
     lines.forEach(line => {
       const name = line.trim();
       if (name && name !== "姓名" && name !== "Name" && !data.students.some(s => s.name === name)) {
-        data.students.push({ name, photos: 0, images: [] });
+        data.students.push({ name, photos: 0, images: [], descriptor: null });
         count++;
       }
     });
 
     save();
+    rebuildFaceMatcher();
     render();
     alert(`成功匯入 ${count} 位學生名單！`);
     e.target.value = "";
@@ -482,6 +611,7 @@ function renderList() {
     const photos = s.photos || 0;
     const isDone = photos >= target;
     const isZero = photos === 0;
+    const hasDescriptor = s.descriptor && s.descriptor.length === 128;
 
     let badgeHtml = '';
     if (isZero) {
@@ -492,7 +622,10 @@ function renderList() {
       badgeHtml = '<span class="badge badge-success">已達標</span>';
     }
 
-    // 渲染照片縮圖
+    if (hasDescriptor) {
+      badgeHtml += '<span class="badge badge-ai">🤖 AI已錄入</span>';
+    }
+
     let thumbsHtml = '';
     if (s.images && s.images.length > 0) {
       thumbsHtml = `<div class="photo-thumbs">${s.images.map(img => `<img src="${img}" class="thumb">`).join("")}</div>`;
@@ -506,6 +639,7 @@ function renderList() {
           ${thumbsHtml}
         </div>
         <div class="btn-group">
+          <button class="secondary" onclick="triggerEnroll(${s.index})" style="padding: 6px 10px; font-size:12px;">👤 建立人臉</button>
           <button class="secondary" onclick="removePhoto(${s.index})" ${photos === 0 ? "disabled" : ""}>−</button>
           <strong style="min-width: 45px; text-align: center;">📸 ${photos}</strong>
           <button class="check" onclick="addPhoto(${s.index})">＋1 張</button>
@@ -522,7 +656,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// 註冊 Service Worker 達成 PWA 離線緩存
+// Service Worker for PWA Offline Caching
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const swCode = `
@@ -536,11 +670,15 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// 事件監聽
+// Event Listeners
 document.getElementById("studentName").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
 document.getElementById("className").addEventListener("keydown", e => { if (e.key === "Enter") saveClass(); });
 
-render();
+// Run Initialization
+window.addEventListener('DOMContentLoaded', () => {
+  render();
+  initAI();
+});
 </script>
 </body>
 </html>
