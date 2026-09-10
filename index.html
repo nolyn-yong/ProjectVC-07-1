@@ -6,8 +6,10 @@
 <meta name="theme-color" content="#222222">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>幼兒園拍照防漏拍 Pro (AI 加強版)</title>
+<title>幼兒園拍照防漏拍 Pro (IndexedDB & 家長分享版)</title>
 
+<!-- Dexie.js for IndexedDB -->
+<script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
 <!-- AI Face API Library -->
 <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 
@@ -15,7 +17,7 @@
 <script>
   const manifest = {
     "name": "幼兒園拍照防漏拍 Pro",
-    "short_name": "防漏拍AI",
+    "short_name": "防漏拍IndexedDB",
     "start_url": "./",
     "display": "standalone",
     "background_color": "#f6f7fb",
@@ -62,6 +64,7 @@
     cursor: pointer; background: #222; color: white; font-weight: 500;
   }
   button.secondary { background: #eee; color: #222; }
+  button.share-btn { background: #10b981; color: white; font-weight: bold; }
   button.danger { background: #ffe9e9; color: #b42318; }
   button.camera-btn {
     background: #2563eb; color: white; font-weight: bold; width: 100%;
@@ -102,12 +105,10 @@
   .photo-thumbs { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
   .thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; }
 
-  /* AI matching highlights */
   .ai-status { font-size: 12px; padding: 8px; border-radius: 8px; margin-bottom: 12px; text-align: center; }
   .ai-status.loading { background: #e0f2fe; color: #0369a1; }
   .ai-status.ready { background: #dcfce7; color: #15803d; }
 
-  /* Modal Popup */
   .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.6); display: none; align-items: flex-end; justify-content: center;
@@ -140,13 +141,11 @@
 </head>
 <body>
 <div class="app">
-  <h1>📸 幼兒園拍照防漏拍 Pro (AI 辨識版)</h1>
-  <div class="sub">拍照後自動辨識學童並進行歸類，數據與相片本地自動儲存。</div>
+  <h1>📸 幼兒園拍照防漏拍 Pro (IndexedDB & 家長分享版)</h1>
+  <div class="sub">使用 IndexedDB 海量圖庫儲存，支援離線、AI 人臉辨識與一鍵分享照片給家長。</div>
 
-  <!-- AI 狀態提示 -->
   <div id="aiStatus" class="ai-status loading">🤖 正在載入 AI 人臉辨識模型中...</div>
 
-  <!-- 相機拍攝核心按鈕 -->
   <div class="card">
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoCaptured(event)">
     <button class="camera-btn" onclick="triggerCamera()">
@@ -154,21 +153,19 @@
     </button>
   </div>
 
-  <!-- 班級與目標設定 -->
   <div class="card">
     <div class="top">
       <div class="field">
         <label>班級名稱</label>
-        <input id="className" placeholder="例如：彩虹班" onchange="saveClass()">
+        <input id="className" placeholder="例如：彩虹班" onchange="saveSettings()">
       </div>
       <div class="field" style="max-width: 120px;">
         <label>目標張數/人</label>
-        <input id="targetPhotos" type="number" min="1" value="3" onchange="saveTarget()">
+        <input id="targetPhotos" type="number" min="1" value="3" onchange="saveSettings()">
       </div>
     </div>
   </div>
 
-  <!-- 儀表板與統計 -->
   <div class="card">
     <div class="stats">
       <strong id="progressText">已達標 0 / 0 人</strong>
@@ -181,7 +178,6 @@
       <span>未達標：<strong id="underTargetCount" style="color:#e53e3e;">0 人</strong></span>
     </div>
 
-    <!-- 快速篩選 -->
     <div class="filters">
       <button id="allBtn" class="active" onclick="setFilter('all')">全部</button>
       <button id="todoBtn" class="secondary" onclick="setFilter('todo')">未拍攝 (0張)</button>
@@ -190,7 +186,6 @@
     </div>
   </div>
 
-  <!-- 新增與匯入 -->
   <div class="card">
     <strong>新增學生與匯入名單</strong>
     <div class="addrow" style="margin-top:8px;">
@@ -203,23 +198,19 @@
     </div>
   </div>
 
-  <!-- 隱藏的 Face Enrollment Input -->
   <input type="file" id="enrollInput" accept="image/*" style="display:none" onchange="handleEnrollPhoto(event)">
 
-  <!-- 學生名單列表 -->
   <div class="card">
     <div id="studentList"></div>
   </div>
 
-  <!-- 底部操作區 -->
   <div class="card" style="display:flex; gap:8px; flex-wrap:wrap;">
-    <button class="secondary" onclick="resetToday()">↩ 今日重置</button>
+    <button class="secondary" onclick="resetToday()">↩ 今日重置照片</button>
     <button class="secondary" onclick="exportCSV()">📤 匯出記錄 (CSV)</button>
     <button class="danger" onclick="clearStudents()" style="margin-left:auto;">刪除名單</button>
   </div>
 </div>
 
-<!-- 照片歸類 Modal 彈窗 -->
 <div class="modal-overlay" id="assignModal">
   <div class="modal-content">
     <h3 style="margin-top:0; margin-bottom:4px;">🎯 這張照片是哪位小朋友的？</h3>
@@ -232,25 +223,57 @@
 </div>
 
 <script>
-const KEY = "kindergarten_photo_tracker_v3";
-let tempCapturedPhoto = null;
-let enrollingStudentIndex = null;
+// --- IndexedDB Database Setup ---
+const db = new Dexie("KindergartenPhotoDB");
+db.version(1).stores({
+  settings: "key",
+  students: "++id, name",
+  photos: "++id, studentId, timestamp"
+});
+
+let settings = { className: "", targetPhotos: 3 };
+let students = [];
+let tempCapturedBlob = null;
+let enrollingStudentId = null;
 let isAiReady = false;
 let faceMatcher = null;
-
-let data = JSON.parse(localStorage.getItem(KEY) || '{"className":"","targetPhotos":3,"students":[]}');
-if (!data.targetPhotos) data.targetPhotos = 3;
-
-data.students = (data.students || []).map(s => ({
-  name: s.name,
-  photos: typeof s.photos === "number" ? s.photos : 0,
-  images: s.images || [],
-  descriptor: s.descriptor || null // 儲存 128D AI Face Vector
-}));
-
 let filter = "all";
 
-// --- AI 初始化與建構 ---
+// --- App Initialization ---
+async function initApp() {
+  await loadSettings();
+  await loadStudents();
+  render();
+  initAI();
+}
+
+async function loadSettings() {
+  const savedClass = await db.settings.get("className");
+  const savedTarget = await db.settings.get("targetPhotos");
+  if (savedClass) settings.className = savedClass.value;
+  if (savedTarget) settings.targetPhotos = savedTarget.value;
+}
+
+async function saveSettings() {
+  const cName = document.getElementById("className").value.trim();
+  const tPhotos = parseInt(document.getElementById("targetPhotos").value, 10) || 3;
+  
+  settings.className = cName;
+  settings.targetPhotos = tPhotos;
+
+  await db.settings.put({ key: "className", value: cName });
+  await db.settings.put({ key: "targetPhotos", value: tPhotos });
+  render();
+}
+
+async function loadStudents() {
+  students = await db.students.toArray();
+  for (let s of students) {
+    s.photosCount = await db.photos.where("studentId").equals(s.id).count();
+  }
+}
+
+// --- AI Model Loading ---
 async function initAI() {
   const statusDiv = document.getElementById("aiStatus");
   try {
@@ -262,7 +285,7 @@ async function initAI() {
     ]);
     isAiReady = true;
     statusDiv.className = "ai-status ready";
-    statusDiv.textContent = "🤖 AI 人臉辨識就緒（離線可用）";
+    statusDiv.textContent = "🤖 AI 人臉辨識就緒（IndexedDB & 家長分享版）";
     rebuildFaceMatcher();
   } catch (err) {
     statusDiv.className = "ai-status";
@@ -275,10 +298,10 @@ async function initAI() {
 function rebuildFaceMatcher() {
   if (!isAiReady) return;
   const labeledDescriptors = [];
-  data.students.forEach((s, idx) => {
+  students.forEach((s) => {
     if (s.descriptor && s.descriptor.length === 128) {
       const desc = new Float32Array(s.descriptor);
-      labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(String(idx), [desc]));
+      labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(String(s.id), [desc]));
     }
   });
 
@@ -289,31 +312,22 @@ function rebuildFaceMatcher() {
   }
 }
 
-function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch (e) {
-    alert("儲存空間滿囉！建議定期匯出記錄並清空舊照片。");
-  }
-}
-
 function triggerCamera() {
-  if (!data.students.length) {
+  if (!students.length) {
     alert("請先新增學生名單，再進行拍照！");
     return;
   }
   document.getElementById("cameraInput").click();
 }
 
-// 建立人臉特徵檔 (Enrollment)
-function triggerEnroll(index) {
-  enrollingStudentIndex = index;
+function triggerEnroll(studentId) {
+  enrollingStudentId = studentId;
   document.getElementById("enrollInput").click();
 }
 
 async function handleEnrollPhoto(e) {
   const file = e.target.files[0];
-  if (!file || enrollingStudentIndex === null) return;
+  if (!file || enrollingStudentId === null) return;
 
   const statusDiv = document.getElementById("aiStatus");
   statusDiv.textContent = "🔄 正在分析人臉特徵...";
@@ -326,78 +340,72 @@ async function handleEnrollPhoto(e) {
   if (!detection) {
     alert("⚠️ 未能清晰偵測到人臉，請重新上傳照片。");
   } else {
-    data.students[enrollingStudentIndex].descriptor = Array.from(detection.descriptor);
-    save();
+    const descriptorArray = Array.from(detection.descriptor);
+    await db.students.update(enrollingStudentId, { descriptor: descriptorArray });
+    await loadStudents();
     rebuildFaceMatcher();
     render();
-    alert(`成功為「${data.students[enrollingStudentIndex].name}」設定 AI 人臉特徵！`);
+    alert("成功設定 AI 人臉特徵！");
   }
 
-  statusDiv.textContent = "🤖 AI 人臉辨識就緒（離線可用）";
+  statusDiv.textContent = "🤖 AI 人臉辨識就緒（IndexedDB & 家長分享版）";
   e.target.value = "";
-  enrollingStudentIndex = null;
+  enrollingStudentId = null;
 }
 
-// 處理照片拍攝與 AI 自動辨識 matching
 async function handlePhotoCaptured(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = async function(evt) {
-    tempCapturedPhoto = evt.target.result;
-    
-    let matchedIndex = null;
-    let confidence = 0;
+  tempCapturedBlob = file; 
+  
+  let matchedStudentId = null;
+  let confidence = 0;
 
-    if (isAiReady && faceMatcher) {
-      const img = await faceapi.bufferToImage(file);
-      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceDescriptor();
+  if (isAiReady && faceMatcher) {
+    const img = await faceapi.bufferToImage(file);
+    const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
-      if (detection) {
-        const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
-        if (bestMatch.label !== 'unknown') {
-          matchedIndex = parseInt(bestMatch.label, 10);
-          confidence = Math.round((1 - bestMatch.distance) * 100);
-        }
+    if (detection) {
+      const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+      if (bestMatch.label !== 'unknown') {
+        matchedStudentId = parseInt(bestMatch.label, 10);
+        confidence = Math.round((1 - bestMatch.distance) * 100);
       }
     }
+  }
 
-    openAssignModal(matchedIndex, confidence);
-    e.target.value = "";
-  };
-  reader.readAsDataURL(file);
+  openAssignModal(matchedStudentId, confidence);
+  e.target.value = "";
 }
 
-function openAssignModal(matchedIndex = null, confidence = 0) {
+function openAssignModal(matchedStudentId = null, confidence = 0) {
   const modal = document.getElementById("assignModal");
   const grid = document.getElementById("assignGrid");
-  const target = data.targetPhotos || 3;
+  const target = settings.targetPhotos || 3;
   const previewText = document.getElementById("capturedPreviewText");
 
-  if (matchedIndex !== null) {
-    previewText.innerHTML = `✨ <strong style="color:#2563eb;">AI 辨識匹配：${escapeHtml(data.students[matchedIndex].name)}</strong> (${confidence}% 信心度)`;
+  const matchedStudent = students.find(s => s.id === matchedStudentId);
+  if (matchedStudent) {
+    previewText.innerHTML = `✨ <strong style="color:#2563eb;">AI 辨識匹配：${escapeHtml(matchedStudent.name)}</strong> (${confidence}% 信心度)`;
   } else {
     previewText.textContent = "請點選下方卡片進行歸類：";
   }
 
-  // 將匹配對象排至第一位顯示
-  let studentIndices = data.students.map((_, i) => i);
-  if (matchedIndex !== null) {
-    studentIndices = studentIndices.filter(i => i !== matchedIndex);
-    studentIndices.unshift(matchedIndex);
+  let orderedStudents = [...students];
+  if (matchedStudentId !== null) {
+    orderedStudents.sort((a, b) => (a.id === matchedStudentId ? -1 : b.id === matchedStudentId ? 1 : 0));
   }
 
-  grid.innerHTML = studentIndices.map(index => {
-    const s = data.students[index];
-    const photos = s.photos || 0;
+  grid.innerHTML = orderedStudents.map(s => {
+    const photos = s.photosCount || 0;
     const isUnder = photos < target;
-    const isMatched = index === matchedIndex;
+    const isMatched = s.id === matchedStudentId;
 
     return `
-      <div class="assign-card ${isMatched ? 'ai-matched' : ''}" onclick="assignPhotoToStudent(${index})">
+      <div class="assign-card ${isMatched ? 'ai-matched' : ''}" onclick="assignPhotoToStudent(${s.id})">
         ${isMatched ? `<div class="ai-badge-top">AI 推薦 (${confidence}%)</div>` : ''}
         <div style="font-weight:600; font-size:15px; ${isMatched ? 'color:#2563eb;' : ''}">${escapeHtml(s.name)}</div>
         <div class="count" style="${isUnder ? 'color:#e53e3e;font-weight:bold;' : ''}">
@@ -412,89 +420,120 @@ function openAssignModal(matchedIndex = null, confidence = 0) {
 
 function closeModal() {
   document.getElementById("assignModal").classList.remove("active");
-  tempCapturedPhoto = null;
+  tempCapturedBlob = null;
 }
 
-function assignPhotoToStudent(index) {
-  if (index >= 0 && index < data.students.length) {
-    data.students[index].photos = (data.students[index].photos || 0) + 1;
-    if (tempCapturedPhoto) {
-      if (!data.students[index].images) data.students[index].images = [];
-      data.students[index].images.push(tempCapturedPhoto);
-    }
-    save();
+async function assignPhotoToStudent(studentId) {
+  if (studentId && tempCapturedBlob) {
+    await db.photos.add({
+      studentId: studentId,
+      blob: tempCapturedBlob,
+      timestamp: new Date().getTime()
+    });
+    await loadStudents();
     render();
   }
   closeModal();
 }
 
-function saveClass() {
-  data.className = document.getElementById("className").value.trim();
-  save();
-  render();
+// --- Share Photos to Parents Feature ---
+async function shareStudentPhotos(studentId) {
+  const student = students.find(s => s.id === studentId);
+  const photoRecords = await db.photos.where("studentId").equals(studentId).toArray();
+  
+  const validBlobs = photoRecords.filter(p => p.blob).map(p => p.blob);
+
+  if (validBlobs.length === 0) {
+    alert(`目前沒有 ${student.name} 的照片可供傳送！`);
+    return;
+  }
+
+  const files = validBlobs.map((blob, index) => {
+    return new File([blob], `${student.name}_photo_${index + 1}.jpg`, { type: blob.type || "image/jpeg" });
+  });
+
+  if (navigator.canShare && navigator.canShare({ files: files })) {
+    try {
+      await navigator.share({
+        title: `${student.name} 的今日園所照片`,
+        text: `家長您好！這是 ${student.name} 今天在學校的照片 📸`,
+        files: files
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        alert("分享過程發生錯誤，改為直接下載照片。");
+        downloadFiles(files);
+      }
+    }
+  } else {
+    alert("您的瀏覽器或設備不支援直接跨 APP 分享檔案，系統將為您自動下載照片！");
+    downloadFiles(files);
+  }
 }
 
-function saveTarget() {
-  const val = parseInt(document.getElementById("targetPhotos").value, 10);
-  data.targetPhotos = (val && val > 0) ? val : 1;
-  save();
-  render();
+function downloadFiles(files) {
+  files.forEach(file => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    a.click();
+  });
 }
 
-function addStudent() {
+async function addStudent() {
   const input = document.getElementById("studentName");
   const name = input.value.trim();
   if (!name) return;
-  if (data.students.some(s => s.name === name)) {
+  if (students.some(s => s.name === name)) {
     alert("這個名字已經存在囉！");
     return;
   }
-  data.students.push({ name, photos: 0, images: [], descriptor: null });
+  await db.students.add({ name: name, descriptor: null });
   input.value = "";
-  save();
+  await loadStudents();
   rebuildFaceMatcher();
   render();
   input.focus();
 }
 
-function addPhoto(index) {
-  data.students[index].photos = (data.students[index].photos || 0) + 1;
-  save();
+async function addPhoto(studentId) {
+  await db.photos.add({ studentId: studentId, blob: null, timestamp: new Date().getTime() });
+  await loadStudents();
   render();
 }
 
-function removePhoto(index) {
-  data.students[index].photos = Math.max(0, (data.students[index].photos || 0) - 1);
-  if (data.students[index].images && data.students[index].images.length > data.students[index].photos) {
-    data.students[index].images.pop();
+async function removePhoto(studentId) {
+  const lastPhoto = await db.photos.where("studentId").equals(studentId).last();
+  if (lastPhoto) {
+    await db.photos.delete(lastPhoto.id);
+    await loadStudents();
+    render();
   }
-  save();
-  render();
 }
 
-function deleteStudent(index) {
-  if (!confirm(`確定要刪除「${data.students[index].name}」嗎？`)) return;
-  data.students.splice(index, 1);
-  save();
+async function deleteStudent(studentId) {
+  const student = students.find(s => s.id === studentId);
+  if (!confirm(`確定要刪除「${student.name}」嗎？`)) return;
+  await db.students.delete(studentId);
+  await db.photos.where("studentId").equals(studentId).delete();
+  await loadStudents();
   rebuildFaceMatcher();
   render();
 }
 
-function resetToday() {
+async function resetToday() {
   if (!confirm("確定要重置今天的拍攝張數與照片嗎？")) return;
-  data.students.forEach(s => {
-    s.photos = 0;
-    s.images = [];
-  });
-  save();
+  await db.photos.clear();
+  await loadStudents();
   render();
 }
 
-function clearStudents() {
-  if (!data.students.length) return;
-  if (!confirm("確定要刪除全部學生名單嗎？")) return;
-  data.students = [];
-  save();
+async function clearStudents() {
+  if (!students.length) return;
+  if (!confirm("確定要刪除全部學生名單與照片嗎？")) return;
+  await db.students.clear();
+  await db.photos.clear();
+  await loadStudents();
   rebuildFaceMatcher();
   render();
 }
@@ -514,25 +553,25 @@ function setFilter(value) {
   renderList();
 }
 
-function importCSV(e) {
+async function importCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = async function(evt) {
     const text = evt.target.result;
     const lines = text.split(/[\r\n,]+/);
     let count = 0;
 
-    lines.forEach(line => {
+    for (let line of lines) {
       const name = line.trim();
-      if (name && name !== "姓名" && name !== "Name" && !data.students.some(s => s.name === name)) {
-        data.students.push({ name, photos: 0, images: [], descriptor: null });
+      if (name && name !== "姓名" && name !== "Name" && !students.some(s => s.name === name)) {
+        await db.students.add({ name: name, descriptor: null });
         count++;
       }
-    });
+    }
 
-    save();
+    await loadStudents();
     rebuildFaceMatcher();
     render();
     alert(`成功匯入 ${count} 位學生名單！`);
@@ -542,24 +581,24 @@ function importCSV(e) {
 }
 
 function exportCSV() {
-  if (!data.students.length) {
+  if (!students.length) {
     alert("目前沒有學生資料可供匯出。");
     return;
   }
 
-  const target = data.targetPhotos || 3;
+  const target = settings.targetPhotos || 3;
   let csvContent = "\uFEFF姓名,拍攝張數,是否達標(目標" + target + "張)\n";
   
-  data.students.forEach(s => {
-    const isDone = (s.photos || 0) >= target ? "是" : "否";
-    csvContent += `"${s.name}",${s.photos || 0},"${isDone}"\n`;
+  students.forEach(s => {
+    const isDone = (s.photosCount || 0) >= target ? "是" : "否";
+    csvContent += `"${s.name}",${s.photosCount || 0},"${isDone}"\n`;
   });
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
   
-  const className = data.className ? data.className + "_" : "";
+  const className = settings.className ? settings.className + "_" : "";
   const dateStr = new Date().toISOString().split('T')[0];
   
   link.setAttribute("href", url);
@@ -570,15 +609,15 @@ function exportCSV() {
 }
 
 function render() {
-  document.getElementById("className").value = data.className || "";
-  document.getElementById("targetPhotos").value = data.targetPhotos || 3;
+  document.getElementById("className").value = settings.className || "";
+  document.getElementById("targetPhotos").value = settings.targetPhotos || 3;
 
-  const total = data.students.length;
-  const target = data.targetPhotos || 3;
+  const total = students.length;
+  const target = settings.targetPhotos || 3;
   
-  const doneCount = data.students.filter(s => (s.photos || 0) >= target).length;
-  const underTargetCount = data.students.filter(s => (s.photos || 0) < target).length;
-  const photoTotal = data.students.reduce((sum, s) => sum + (s.photos || 0), 0);
+  const doneCount = students.filter(s => (s.photosCount || 0) >= target).length;
+  const underTargetCount = students.filter(s => (s.photosCount || 0) < target).length;
+  const photoTotal = students.reduce((sum, s) => sum + (s.photosCount || 0), 0);
   
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
   const avg = total ? (photoTotal / total).toFixed(1) : "0";
@@ -593,22 +632,24 @@ function render() {
   renderList();
 }
 
-function renderList() {
+async function renderList() {
   const box = document.getElementById("studentList");
-  const target = data.targetPhotos || 3;
-  let list = data.students.map((s, i) => ({ ...s, index: i }));
+  const target = settings.targetPhotos || 3;
+  let list = [...students];
 
-  if (filter === "todo") list = list.filter(s => (s.photos || 0) === 0);
-  if (filter === "under") list = list.filter(s => (s.photos || 0) < target);
-  if (filter === "done") list = list.filter(s => (s.photos || 0) >= target);
+  if (filter === "todo") list = list.filter(s => (s.photosCount || 0) === 0);
+  if (filter === "under") list = list.filter(s => (s.photosCount || 0) < target);
+  if (filter === "done") list = list.filter(s => (s.photosCount || 0) >= target);
 
   if (!list.length) {
     box.innerHTML = '<div class="empty">目前沒有符合條件的小朋友</div>';
     return;
   }
 
-  box.innerHTML = list.map(s => {
-    const photos = s.photos || 0;
+  box.innerHTML = "";
+
+  for (let s of list) {
+    const photos = s.photosCount || 0;
     const isDone = photos >= target;
     const isZero = photos === 0;
     const hasDescriptor = s.descriptor && s.descriptor.length === 128;
@@ -626,28 +667,38 @@ function renderList() {
       badgeHtml += '<span class="badge badge-ai">🤖 AI已錄入</span>';
     }
 
+    const photoRecords = await db.photos.where("studentId").equals(s.id).toArray();
     let thumbsHtml = '';
-    if (s.images && s.images.length > 0) {
-      thumbsHtml = `<div class="photo-thumbs">${s.images.map(img => `<img src="${img}" class="thumb">`).join("")}</div>`;
+    if (photoRecords.length > 0) {
+      thumbsHtml = '<div class="photo-thumbs">';
+      for (let p of photoRecords) {
+        if (p.blob) {
+          const imgUrl = URL.createObjectURL(p.blob);
+          thumbsHtml += `<img src="${imgUrl}" class="thumb">`;
+        }
+      }
+      thumbsHtml += '</div>';
     }
 
-    return `
-      <div class="student ${isDone ? "done" : ""} ${!isDone ? "alert-target" : ""}">
-        <div>
-          <div class="name">${escapeHtml(s.name)} ${badgeHtml}</div>
-          <div class="status">目標：${target} 張｜當前：${photos} 張</div>
-          ${thumbsHtml}
-        </div>
-        <div class="btn-group">
-          <button class="secondary" onclick="triggerEnroll(${s.index})" style="padding: 6px 10px; font-size:12px;">👤 建立人臉</button>
-          <button class="secondary" onclick="removePhoto(${s.index})" ${photos === 0 ? "disabled" : ""}>−</button>
-          <strong style="min-width: 45px; text-align: center;">📸 ${photos}</strong>
-          <button class="check" onclick="addPhoto(${s.index})">＋1 張</button>
-          <button class="secondary" onclick="deleteStudent(${s.index})" style="padding: 6px 10px; font-size:12px;">刪除</button>
-        </div>
+    const card = document.createElement("div");
+    card.className = `student ${isDone ? "done" : ""} ${!isDone ? "alert-target" : ""}`;
+    card.innerHTML = `
+      <div>
+        <div class="name">${escapeHtml(s.name)} ${badgeHtml}</div>
+        <div class="status">目標：${target} 張｜當前：${photos} 張</div>
+        ${thumbsHtml}
+      </div>
+      <div class="btn-group">
+        <button class="share-btn" onclick="shareStudentPhotos(${s.id})" style="padding: 6px 10px; font-size:12px;">📤 傳送照片</button>
+        <button class="secondary" onclick="triggerEnroll(${s.id})" style="padding: 6px 10px; font-size:12px;">👤 建立人臉</button>
+        <button class="secondary" onclick="removePhoto(${s.id})" ${photos === 0 ? "disabled" : ""}>−</button>
+        <strong style="min-width: 45px; text-align: center;">📸 ${photos}</strong>
+        <button class="check" onclick="addPhoto(${s.id})">＋1 張</button>
+        <button class="secondary" onclick="deleteStudent(${s.id})" style="padding: 6px 10px; font-size:12px;">刪除</button>
       </div>
     `;
-  }).join("");
+    box.appendChild(card);
+  }
 }
 
 function escapeHtml(text) {
@@ -670,15 +721,10 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Event Listeners
 document.getElementById("studentName").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
-document.getElementById("className").addEventListener("keydown", e => { if (e.key === "Enter") saveClass(); });
+document.getElementById("className").addEventListener("keydown", e => { if (e.key === "Enter") saveSettings(); });
 
-// Run Initialization
-window.addEventListener('DOMContentLoaded', () => {
-  render();
-  initAI();
-});
+window.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
 </html>
