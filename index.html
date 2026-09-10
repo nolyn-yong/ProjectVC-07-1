@@ -2,11 +2,11 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#222222">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2563eb">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>幼兒園拍照防漏拍 Pro (IndexedDB & 家長分享版)</title>
+<title>幼兒園拍照防漏拍 Pro (手機優化頭像版)</title>
 
 <!-- Dexie.js for IndexedDB -->
 <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
@@ -20,8 +20,8 @@
     "short_name": "防漏拍IndexedDB",
     "start_url": "./",
     "display": "standalone",
-    "background_color": "#f6f7fb",
-    "theme_color": "#222222",
+    "background_color": "#f8fafc",
+    "theme_color": "#2563eb",
     "icons": [{
       "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📸</text></svg>",
       "sizes": "192x192",
@@ -38,193 +38,300 @@
 </script>
 
 <style>
-  * { box-sizing: border-box; touch-action: manipulation; }
-  body {
-    margin: 0; font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif;
-    background: #f6f7fb; color: #222; padding-bottom: 80px;
+  :root {
+    --primary: #2563eb;
+    --primary-light: #eff6ff;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg-main: #f8fafc;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
   }
-  .app { max-width: 760px; margin: auto; padding: 16px; }
-  h1 { font-size: 22px; margin: 8px 0 4px; }
-  .sub { color: #666; margin-bottom: 14px; font-size: 13px; }
-  
-  .card {
-    background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px;
-    box-shadow: 0 3px 12px rgba(0,0,0,.05);
-  }
-  .top { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-  label { font-size: 13px; color: #666; display: block; margin-bottom: 4px; }
-  input, select {
-    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px;
-    font-size: 15px; outline: none; background: white;
-  }
-  .field { flex: 1; min-width: 140px; }
-  
-  button {
-    border: 0; border-radius: 10px; padding: 10px 14px; font-size: 14px;
-    cursor: pointer; background: #222; color: white; font-weight: 500;
-  }
-  button.secondary { background: #eee; color: #222; }
-  button.share-btn { background: #10b981; color: white; font-weight: bold; }
-  button.danger { background: #ffe9e9; color: #b42318; }
-  button.camera-btn {
-    background: #2563eb; color: white; font-weight: bold; width: 100%;
-    padding: 14px; font-size: 16px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    box-shadow: 0 4px 12px rgba(37,99,235,0.3);
-  }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  
-  .stats { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
-  .progress { height: 10px; background: #eee; border-radius: 99px; overflow: hidden; margin: 8px 0; }
-  .bar { height: 100%; width: 0%; background: #222; transition: width .2s; }
-  
-  .filters { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
-  .filters button.active { background: #222; color: white; }
-  
-  .student {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px; border: 1px solid #eee; border-radius: 12px; margin: 8px 0;
-    gap: 10px; background: #fff; transition: background .2s;
-  }
-  .student.alert-target { border-left: 5px solid #e53e3e; }
-  .student.done { background: #f9fbf8; }
-  
-  .name { font-size: 16px; font-weight: 600; }
-  .status { font-size: 12px; margin-top: 2px; color: #777; }
-  .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 4px; }
-  .badge-danger { background: #fed7d7; color: #9b2c2c; }
-  .badge-warning { background: #feebc8; color: #9c4221; }
-  .badge-success { background: #c6f6d5; color: #22543d; }
-  .badge-ai { background: #e0e7ff; color: #3730a3; }
-  
-  .btn-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  .empty { text-align: center; color: #777; padding: 20px; font-size: 14px; }
-  .addrow { display: flex; gap: 8px; }
-  .addrow input { flex: 1; }
-  
-  .photo-thumbs { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
-  .thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; }
 
-  .ai-status { font-size: 12px; padding: 8px; border-radius: 8px; margin-bottom: 12px; text-align: center; }
+  * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+    background: var(--bg-main); color: var(--text-main); padding-bottom: 90px;
+  }
+
+  /* Header */
+  .header {
+    position: sticky; top: 0; z-index: 100; background: var(--primary); color: white;
+    padding: 12px 16px; box-shadow: 0 2px 8px rgba(37,99,235,0.2);
+  }
+  .header h1 { margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .header-sub { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+
+  .app { max-width: 600px; margin: 0 auto; padding: 12px; }
+
+  /* Navigation Tabs Bottom Bar */
+  .nav-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 65px; background: white;
+    display: flex; border-top: 1px solid var(--border); z-index: 1000;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 11px; font-weight: 500; cursor: pointer; border: 0; background: transparent;
+  }
+  .nav-item.active { color: var(--primary); font-weight: 700; }
+  .nav-item .icon { font-size: 20px; margin-bottom: 2px; }
+
+  /* Views Management */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--card-bg); border-radius: 16px; padding: 14px; margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--border);
+  }
+
+  /* Buttons */
+  button {
+    border: 0; border-radius: 10px; padding: 8px 12px; font-size: 13px;
+    cursor: pointer; background: #e2e8f0; color: var(--text-main); font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  button:active { transform: scale(0.97); }
+  button.primary { background: var(--primary); color: white; }
+  button.share-btn { background: var(--success); color: white; }
+  button.danger { background: #fef2f2; color: var(--danger); }
+  button.camera-btn {
+    background: var(--primary); color: white; font-size: 17px; font-weight: bold; width: 100%;
+    padding: 16px; border-radius: 14px; box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+  }
+
+  /* Inputs & Form Elements */
+  label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600; }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; outline: none; background: white;
+  }
+
+  /* Stats Bar */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-top: 8px; }
+  .stat-box { background: var(--bg-main); padding: 8px; border-radius: 10px; }
+  .stat-val { font-size: 16px; font-weight: bold; color: var(--text-main); }
+  .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .progress { height: 10px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin: 10px 0 6px; }
+  .bar { height: 100%; width: 0%; background: var(--primary); transition: width .3s; }
+
+  /* Student List Card Design */
+  .student-card {
+    background: white; border-radius: 14px; padding: 12px; margin-bottom: 10px;
+    border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+  }
+  .student-card.done { background: #f8fafc; border-color: #cbd5e1; }
+  .student-card.alert-target { border-left: 5px solid var(--danger); }
+
+  .student-header { display: flex; align-items: center; gap: 12px; }
+  
+  /* Avatar Styling */
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
+    border: 2px solid var(--border); background: #f1f5f9; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 22px; color: #94a3b8;
+    overflow: hidden; cursor: pointer; position: relative;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-sm { width: 40px; height: 40px; font-size: 18px; }
+  .avatar-lg { width: 60px; height: 60px; font-size: 26px; }
+
+  .student-info { flex: 1; }
+  .student-name { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .student-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .badge { padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+  .badge-danger { background: #fee2e2; color: #991b1b; }
+  .badge-warning { background: #fef3c7; color: #92400e; }
+  .badge-success { background: #d1fae5; color: #065f46; }
+  .badge-ai { background: #e0e7ff; color: #3730a3; }
+
+  .student-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; pt-2; border-top: 1px dashed var(--border); padding-top: 8px; }
+  
+  .photo-thumbs { display: flex; gap: 4px; margin-top: 4px; overflow-x: auto; padding-bottom: 2px; }
+  .thumb { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+
+  /* AI Status Bar */
+  .ai-status { font-size: 11px; padding: 6px 10px; border-radius: 8px; margin-bottom: 10px; text-align: center; font-weight: 500; }
   .ai-status.loading { background: #e0f2fe; color: #0369a1; }
   .ai-status.ready { background: #dcfce7; color: #15803d; }
 
+  /* Filters */
+  .filters { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+  .filters button { font-size: 12px; padding: 6px 10px; flex-shrink: 0; border-radius: 8px; }
+  .filters button.active { background: var(--text-main); color: white; }
+
+  /* Modal for Photo Classification */
   .modal-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.6); display: none; align-items: flex-end; justify-content: center;
-    z-index: 1000;
+    background: rgba(15, 23, 42, 0.7); display: none; align-items: flex-end; justify-content: center;
+    z-index: 2000; backdrop-filter: blur(4px);
   }
   .modal-overlay.active { display: flex; }
   .modal-content {
-    background: white; border-radius: 20px 20px 0 0; padding: 20px;
-    width: 100%; max-width: 600px; max-height: 80vh; overflow-y: auto;
-    animation: slideUp 0.2s ease-out;
+    background: white; border-radius: 24px 24px 0 0; padding: 20px;
+    width: 100%; max-width: 600px; max-height: 85vh; overflow-y: auto;
+    animation: slideUp 0.25s cubic-bezier(0, 0, 0.2, 1);
   }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  
-  .assign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 14px; }
-  .assign-card {
-    border: 2px solid #eee; border-radius: 12px; padding: 12px; text-align: center;
-    cursor: pointer; background: #f9f9f9; transition: all 0.15s; position: relative;
-  }
-  .assign-card.ai-matched { border-color: #2563eb; background: #eff6ff; box-shadow: 0 0 10px rgba(37,99,235,0.2); }
-  .assign-card:active { transform: scale(0.96); background: #ebf8ff; border-color: #3182ce; }
-  .assign-card .count { font-size: 12px; color: #666; margin-top: 4px; }
-  .ai-badge-top { position: absolute; top: -10px; right: 8px; background: #2563eb; color: white; font-size: 10px; padding: 2px 6px; border-radius: 99px; }
 
-  @media (max-width: 520px) {
-    .app { padding: 12px; }
-    .student { flex-direction: column; align-items: flex-start; }
-    .btn-group { width: 100%; justify-content: space-between; margin-top: 6px; }
+  .assign-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
+  
+  .assign-card {
+    border: 2px solid var(--border); border-radius: 14px; padding: 10px; text-align: center;
+    cursor: pointer; background: #f8fafc; transition: all 0.15s; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   }
+  .assign-card.ai-matched { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 12px rgba(37,99,235,0.25); }
+  .assign-card:active { transform: scale(0.96); }
+  .assign-card .count { font-size: 11px; color: var(--text-muted); }
+  .ai-badge-top { position: absolute; top: -10px; right: 6px; background: var(--primary); color: white; font-size: 10px; padding: 2px 6px; border-radius: 99px; font-weight: bold; }
+
+  .empty { text-align: center; color: var(--text-muted); padding: 30px 10px; font-size: 14px; }
 </style>
 </head>
 <body>
+
+<div class="header">
+  <h1>📸 幼兒園拍照防漏拍 Pro</h1>
+  <div class="header-sub" id="headerSubText">載入中...</div>
+</div>
+
 <div class="app">
-  <h1>📸 幼兒園拍照防漏拍 Pro (IndexedDB & 家長分享版)</h1>
-  <div class="sub">使用 IndexedDB 海量圖庫儲存，支援離線、AI 人臉辨識與一鍵分享照片給家長。</div>
+  <div id="aiStatus" class="ai-status loading">🤖 正在載入 AI 人臉辨識模組...</div>
 
-  <div id="aiStatus" class="ai-status loading">🤖 正在載入 AI 人臉辨識模型中...</div>
-
-  <div class="card">
-    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoCaptured(event)">
-    <button class="camera-btn" onclick="triggerCamera()">
-      📷 開啟相機拍攝並 AI 歸類
-    </button>
-  </div>
-
-  <div class="card">
-    <div class="top">
-      <div class="field">
-        <label>班級名稱</label>
-        <input id="className" placeholder="例如：彩虹班" onchange="saveSettings()">
-      </div>
-      <div class="field" style="max-width: 120px;">
-        <label>目標張數/人</label>
-        <input id="targetPhotos" type="number" min="1" value="3" onchange="saveSettings()">
-      </div>
+  <!-- VIEW 1: CAMERA & PHOTO TRACKER -->
+  <div id="viewCamera" class="view active">
+    <div class="card">
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoCaptured(event)">
+      <button class="camera-btn" onclick="triggerCamera()">
+        📷 拍照並 AI 歸類照片
+      </button>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="stats">
-      <strong id="progressText">已達標 0 / 0 人</strong>
-      <span id="photoTotal">總張數：0 張</span>
-    </div>
-    <div class="progress"><div class="bar" id="bar"></div></div>
-    <div class="stats" style="margin-top:4px;">
-      <span>完成率：<span id="percent">0%</span></span>
-      <span>平均：<span id="averagePhotos">0 張/人</span></span>
-      <span>未達標：<strong id="underTargetCount" style="color:#e53e3e;">0 人</strong></span>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong id="progressText">已達標 0 / 0 人</strong>
+        <span id="percent" style="font-weight:bold; color:var(--primary);">0%</span>
+      </div>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-val" id="photoTotal">0</div>
+          <div class="stat-lbl">總拍攝張數</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="averagePhotos">0</div>
+          <div class="stat-lbl">平均張數/人</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="underTargetCount" style="color:var(--danger);">0</div>
+          <div class="stat-lbl">未達標人數</div>
+        </div>
+      </div>
     </div>
 
     <div class="filters">
       <button id="allBtn" class="active" onclick="setFilter('all')">全部</button>
-      <button id="todoBtn" class="secondary" onclick="setFilter('todo')">未拍攝 (0張)</button>
-      <button id="underBtn" class="secondary" onclick="setFilter('under')">未達目標張數</button>
-      <button id="doneBtn" class="secondary" onclick="setFilter('done')">已達標</button>
+      <button id="todoBtn" onclick="setFilter('todo')">未拍攝 (0)</button>
+      <button id="underBtn" onclick="setFilter('under')">未達標</button>
+      <button id="doneBtn" onclick="setFilter('done')">已達標</button>
     </div>
+
+    <div id="cameraStudentList"></div>
   </div>
 
-  <div class="card">
-    <strong>新增學生與匯入名單</strong>
-    <div class="addrow" style="margin-top:8px;">
-      <input id="studentName" placeholder="輸入學生姓名">
-      <button onclick="addStudent()">新增</button>
+  <!-- VIEW 2: STUDENT PROFILE MANAGEMENT -->
+  <div id="viewStudents" class="view">
+    <div class="card">
+      <strong>新增學生名單</strong>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <input id="studentName" placeholder="輸入幼兒姓名">
+        <button class="primary" onclick="addStudent()">新增</button>
+      </div>
     </div>
-    <div style="margin-top:10px;">
-      <input type="file" id="csvFileInput" accept=".csv, .txt" style="display:none" onchange="importCSV(event)">
-      <button class="secondary" style="width:100%;" onclick="document.getElementById('csvFileInput').click()">📥 批次匯入名單 (CSV/TXT)</button>
-    </div>
+
+    <div id="manageStudentList"></div>
   </div>
 
-  <input type="file" id="enrollInput" accept="image/*" style="display:none" onchange="handleEnrollPhoto(event)">
+  <!-- VIEW 3: CLASS SETTINGS & DATA -->
+  <div id="viewSettings" class="view">
+    <div class="card">
+      <strong>班級與目標張數設定</strong>
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
+        <div>
+          <label>班級名稱</label>
+          <input id="className" placeholder="例如：彩虹班" onchange="saveSettings()">
+        </div>
+        <div>
+          <label>每人目標拍攝張數</label>
+          <input id="targetPhotos" type="number" min="1" value="3" onchange="saveSettings()">
+        </div>
+      </div>
+    </div>
 
-  <div class="card">
-    <div id="studentList"></div>
-  </div>
+    <div class="card">
+      <strong>批次資料管理</strong>
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+        <input type="file" id="csvFileInput" accept=".csv, .txt" style="display:none" onchange="importCSV(event)">
+        <button onclick="document.getElementById('csvFileInput').click()">📥 批次匯入學生名單 (CSV/TXT)</button>
+        <button class="share-btn" onclick="exportCSV()">📤 匯出統計報表 (CSV)</button>
+      </div>
+    </div>
 
-  <div class="card" style="display:flex; gap:8px; flex-wrap:wrap;">
-    <button class="secondary" onclick="resetToday()">↩ 今日重置照片</button>
-    <button class="secondary" onclick="exportCSV()">📤 匯出記錄 (CSV)</button>
-    <button class="danger" onclick="clearStudents()" style="margin-left:auto;">刪除名單</button>
+    <div class="card">
+      <strong style="color:var(--danger);">危險區域</strong>
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:8px;">
+        <button class="danger" onclick="resetToday()">↩ 重置今日拍攝照片</button>
+        <button class="danger" onclick="clearStudents()">🗑️ 清除所有學生與相冊</button>
+      </div>
+    </div>
   </div>
 </div>
 
+<!-- HIDDEN INPUTS FOR AVATAR & ENROLLMENT -->
+<input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarSelected(event)">
+<input type="file" id="enrollInput" accept="image/*" style="display:none" onchange="handleEnrollPhoto(event)">
+
+<!-- BOTTOM NAVIGATION BAR -->
+<div class="nav-bar">
+  <button class="nav-item active" onclick="switchTab('camera', this)">
+    <span class="icon">📷</span>
+    <span>拍照歸類</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('students', this)">
+    <span class="icon">👶</span>
+    <span>學生名單</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('settings', this)">
+    <span class="icon">⚙️</span>
+    <span>班級設定</span>
+  </button>
+</div>
+
+<!-- AI CLASSIFICATION ASSIGNMENT MODAL -->
 <div class="modal-overlay" id="assignModal">
   <div class="modal-content">
-    <h3 style="margin-top:0; margin-bottom:4px;">🎯 這張照片是哪位小朋友的？</h3>
-    <div style="font-size:12px; color:#666;" id="capturedPreviewText">請點選下方卡片進行歸類：</div>
+    <h3 style="margin-top:0; margin-bottom:4px; font-size:18px;">🎯 照片歸類點選</h3>
+    <div style="font-size:12px; color:var(--text-muted);" id="capturedPreviewText">請點選下方對應的幼兒：</div>
     
     <div class="assign-grid" id="assignGrid"></div>
     
-    <button class="secondary" style="width:100%; margin-top:16px; padding:12px;" onclick="closeModal()">取消 / 不歸類</button>
+    <button style="width:100%; margin-top:16px; padding:12px; background:#e2e8f0;" onclick="closeModal()">取消 / 暫不歸類</button>
   </div>
 </div>
 
 <script>
 // --- IndexedDB Database Setup ---
-const db = new Dexie("KindergartenPhotoDB");
+const db = new Dexie("KindergartenPhotoDB_v2");
 db.version(1).stores({
   settings: "key",
   students: "++id, name",
@@ -234,7 +341,7 @@ db.version(1).stores({
 let settings = { className: "", targetPhotos: 3 };
 let students = [];
 let tempCapturedBlob = null;
-let enrollingStudentId = null;
+let currentTargetStudentId = null;
 let isAiReady = false;
 let faceMatcher = null;
 let filter = "all";
@@ -273,7 +380,19 @@ async function loadStudents() {
   }
 }
 
-// --- AI Model Loading ---
+// --- Tab Navigation ---
+function switchTab(tabName, element) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  if (tabName === 'camera') document.getElementById('viewCamera').classList.add('active');
+  if (tabName === 'students') document.getElementById('viewStudents').classList.add('active');
+  if (tabName === 'settings') document.getElementById('viewSettings').classList.add('active');
+
+  element.classList.add('active');
+}
+
+// --- AI Initialization ---
 async function initAI() {
   const statusDiv = document.getElementById("aiStatus");
   try {
@@ -285,13 +404,13 @@ async function initAI() {
     ]);
     isAiReady = true;
     statusDiv.className = "ai-status ready";
-    statusDiv.textContent = "🤖 AI 人臉辨識就緒（IndexedDB & 家長分享版）";
+    statusDiv.textContent = "🤖 AI 人臉辨識與頭像自動對比就緒";
     rebuildFaceMatcher();
   } catch (err) {
     statusDiv.className = "ai-status";
     statusDiv.style.background = "#fee2e2";
     statusDiv.style.color = "#991b1b";
-    statusDiv.textContent = "⚠️ AI 模型載入失敗，將採用手動歸類模式。";
+    statusDiv.textContent = "⚠️ AI 模組載入失敗，採用手動歸類模式。";
   }
 }
 
@@ -312,45 +431,31 @@ function rebuildFaceMatcher() {
   }
 }
 
+// --- Student Avatar Management ---
+function triggerAvatarSelect(studentId) {
+  currentTargetStudentId = studentId;
+  document.getElementById("avatarInput").click();
+}
+
+async function handleAvatarSelected(e) {
+  const file = e.target.files[0];
+  if (!file || !currentTargetStudentId) return;
+
+  // Convert image to Blob and save to student record
+  await db.students.update(currentTargetStudentId, { avatarBlob: file });
+  await loadStudents();
+  render();
+  e.target.value = "";
+  currentTargetStudentId = null;
+}
+
+// --- Camera & Photo Capturing ---
 function triggerCamera() {
   if (!students.length) {
     alert("請先新增學生名單，再進行拍照！");
     return;
   }
   document.getElementById("cameraInput").click();
-}
-
-function triggerEnroll(studentId) {
-  enrollingStudentId = studentId;
-  document.getElementById("enrollInput").click();
-}
-
-async function handleEnrollPhoto(e) {
-  const file = e.target.files[0];
-  if (!file || enrollingStudentId === null) return;
-
-  const statusDiv = document.getElementById("aiStatus");
-  statusDiv.textContent = "🔄 正在分析人臉特徵...";
-
-  const img = await faceapi.bufferToImage(file);
-  const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-    .withFaceLandmarks()
-    .withFaceDescriptor();
-
-  if (!detection) {
-    alert("⚠️ 未能清晰偵測到人臉，請重新上傳照片。");
-  } else {
-    const descriptorArray = Array.from(detection.descriptor);
-    await db.students.update(enrollingStudentId, { descriptor: descriptorArray });
-    await loadStudents();
-    rebuildFaceMatcher();
-    render();
-    alert("成功設定 AI 人臉特徵！");
-  }
-
-  statusDiv.textContent = "🤖 AI 人臉辨識就緒（IndexedDB & 家長分享版）";
-  e.target.value = "";
-  enrollingStudentId = null;
 }
 
 async function handlePhotoCaptured(e) {
@@ -389,9 +494,9 @@ function openAssignModal(matchedStudentId = null, confidence = 0) {
 
   const matchedStudent = students.find(s => s.id === matchedStudentId);
   if (matchedStudent) {
-    previewText.innerHTML = `✨ <strong style="color:#2563eb;">AI 辨識匹配：${escapeHtml(matchedStudent.name)}</strong> (${confidence}% 信心度)`;
+    previewText.innerHTML = `✨ <strong style="color:var(--primary);">AI 辨識匹配：${escapeHtml(matchedStudent.name)}</strong> (${confidence}% 信心度)`;
   } else {
-    previewText.textContent = "請點選下方卡片進行歸類：";
+    previewText.textContent = "請對照個人頭像點選歸類：";
   }
 
   let orderedStudents = [...students];
@@ -403,13 +508,17 @@ function openAssignModal(matchedStudentId = null, confidence = 0) {
     const photos = s.photosCount || 0;
     const isUnder = photos < target;
     const isMatched = s.id === matchedStudentId;
+    const avatarUrl = s.avatarBlob ? URL.createObjectURL(s.avatarBlob) : '';
 
     return `
       <div class="assign-card ${isMatched ? 'ai-matched' : ''}" onclick="assignPhotoToStudent(${s.id})">
         ${isMatched ? `<div class="ai-badge-top">AI 推薦 (${confidence}%)</div>` : ''}
-        <div style="font-weight:600; font-size:15px; ${isMatched ? 'color:#2563eb;' : ''}">${escapeHtml(s.name)}</div>
-        <div class="count" style="${isUnder ? 'color:#e53e3e;font-weight:bold;' : ''}">
-          目前: ${photos} / ${target} 張
+        <div class="avatar avatar-sm">
+          ${avatarUrl ? `<img src="${avatarUrl}">` : '👶'}
+        </div>
+        <div style="font-weight:700; font-size:14px; ${isMatched ? 'color:var(--primary);' : ''}">${escapeHtml(s.name)}</div>
+        <div class="count" style="${isUnder ? 'color:var(--danger);font-weight:bold;' : ''}">
+          進度: ${photos} / ${target} 張
         </div>
       </div>
     `;
@@ -436,11 +545,51 @@ async function assignPhotoToStudent(studentId) {
   closeModal();
 }
 
-// --- Share Photos to Parents Feature ---
+// --- AI Model Enrollment per Student ---
+function triggerEnroll(studentId) {
+  currentTargetStudentId = studentId;
+  document.getElementById("enrollInput").click();
+}
+
+async function handleEnrollPhoto(e) {
+  const file = e.target.files[0];
+  if (!file || !currentTargetStudentId) return;
+
+  const statusDiv = document.getElementById("aiStatus");
+  statusDiv.textContent = "🔄 正在提取人臉特徵...";
+
+  const img = await faceapi.bufferToImage(file);
+  const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!detection) {
+    alert("⚠️ 未能清晰偵測到臉部特徵，請上傳清晰正面照片。");
+  } else {
+    const descriptorArray = Array.from(detection.descriptor);
+    // Automatically use this photo as avatar if not existing
+    const student = students.find(s => s.id === currentTargetStudentId);
+    let updateObj = { descriptor: descriptorArray };
+    if (!student.avatarBlob) {
+      updateObj.avatarBlob = file;
+    }
+
+    await db.students.update(currentTargetStudentId, updateObj);
+    await loadStudents();
+    rebuildFaceMatcher();
+    render();
+    alert("成功更新人臉模型特徵！");
+  }
+
+  statusDiv.textContent = "🤖 AI 人臉辨識與頭像自動對比就緒";
+  e.target.value = "";
+  currentTargetStudentId = null;
+}
+
+// --- Sharing Photos ---
 async function shareStudentPhotos(studentId) {
   const student = students.find(s => s.id === studentId);
   const photoRecords = await db.photos.where("studentId").equals(studentId).toArray();
-  
   const validBlobs = photoRecords.filter(p => p.blob).map(p => p.blob);
 
   if (validBlobs.length === 0) {
@@ -456,17 +605,13 @@ async function shareStudentPhotos(studentId) {
     try {
       await navigator.share({
         title: `${student.name} 的今日園所照片`,
-        text: `家長您好！這是 ${student.name} 今天在學校的照片 📸`,
+        text: `家長您好！這是 ${student.name} 今天在學校的照片照片 📸`,
         files: files
       });
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        alert("分享過程發生錯誤，改為直接下載照片。");
-        downloadFiles(files);
-      }
+      if (err.name !== 'AbortError') downloadFiles(files);
     }
   } else {
-    alert("您的瀏覽器或設備不支援直接跨 APP 分享檔案，系統將為您自動下載照片！");
     downloadFiles(files);
   }
 }
@@ -480,20 +625,20 @@ function downloadFiles(files) {
   });
 }
 
+// --- Student List Management Functions ---
 async function addStudent() {
   const input = document.getElementById("studentName");
   const name = input.value.trim();
   if (!name) return;
   if (students.some(s => s.name === name)) {
-    alert("這個名字已經存在囉！");
+    alert("已存在相同姓名的學生！");
     return;
   }
-  await db.students.add({ name: name, descriptor: null });
+  await db.students.add({ name: name, descriptor: null, avatarBlob: null });
   input.value = "";
   await loadStudents();
   rebuildFaceMatcher();
   render();
-  input.focus();
 }
 
 async function addPhoto(studentId) {
@@ -513,7 +658,7 @@ async function removePhoto(studentId) {
 
 async function deleteStudent(studentId) {
   const student = students.find(s => s.id === studentId);
-  if (!confirm(`確定要刪除「${student.name}」嗎？`)) return;
+  if (!confirm(`確定要刪除「${student.name}」的所有資料嗎？`)) return;
   await db.students.delete(studentId);
   await db.photos.where("studentId").equals(studentId).delete();
   await loadStudents();
@@ -522,15 +667,14 @@ async function deleteStudent(studentId) {
 }
 
 async function resetToday() {
-  if (!confirm("確定要重置今天的拍攝張數與照片嗎？")) return;
+  if (!confirm("確定要清空今天的照片紀錄嗎？")) return;
   await db.photos.clear();
   await loadStudents();
   render();
 }
 
 async function clearStudents() {
-  if (!students.length) return;
-  if (!confirm("確定要刪除全部學生名單與照片嗎？")) return;
+  if (!confirm("確定要刪除所有學生與相冊記錄嗎？")) return;
   await db.students.clear();
   await db.photos.clear();
   await loadStudents();
@@ -538,57 +682,43 @@ async function clearStudents() {
   render();
 }
 
-function setFilter(value) {
-  filter = value;
-  document.querySelectorAll(".filters button").forEach(b => {
-    b.classList.remove("active");
-    b.classList.add("secondary");
-  });
-  const btnId = value + "Btn";
-  const activeBtn = document.getElementById(btnId);
-  if (activeBtn) {
-    activeBtn.classList.add("active");
-    activeBtn.classList.remove("secondary");
-  }
-  renderList();
+function setFilter(val) {
+  filter = val;
+  document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+  const btn = document.getElementById(val + "Btn");
+  if (btn) btn.classList.add("active");
+  renderCameraStudentList();
 }
 
+// --- Import / Export CSV ---
 async function importCSV(e) {
   const file = e.target.files[0];
   if (!file) return;
 
   const reader = new FileReader();
   reader.onload = async function(evt) {
-    const text = evt.target.result;
-    const lines = text.split(/[\r\n,]+/);
+    const lines = evt.target.result.split(/[\r\n,]+/);
     let count = 0;
-
     for (let line of lines) {
       const name = line.trim();
       if (name && name !== "姓名" && name !== "Name" && !students.some(s => s.name === name)) {
-        await db.students.add({ name: name, descriptor: null });
+        await db.students.add({ name: name, descriptor: null, avatarBlob: null });
         count++;
       }
     }
-
     await loadStudents();
     rebuildFaceMatcher();
     render();
-    alert(`成功匯入 ${count} 位學生名單！`);
+    alert(`成功匯入 ${count} 位學生！`);
     e.target.value = "";
   };
   reader.readAsText(file, "UTF-8");
 }
 
 function exportCSV() {
-  if (!students.length) {
-    alert("目前沒有學生資料可供匯出。");
-    return;
-  }
-
+  if (!students.length) return alert("目前沒有學生資料。");
   const target = settings.targetPhotos || 3;
-  let csvContent = "\uFEFF姓名,拍攝張數,是否達標(目標" + target + "張)\n";
-  
+  let csvContent = "\uFEFF姓名,拍攝張數,是否達標\n";
   students.forEach(s => {
     const isDone = (s.photosCount || 0) >= target ? "是" : "否";
     csvContent += `"${s.name}",${s.photosCount || 0},"${isDone}"\n`;
@@ -596,21 +726,16 @@ function exportCSV() {
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  
-  const className = settings.className ? settings.className + "_" : "";
-  const dateStr = new Date().toISOString().split('T')[0];
-  
-  link.setAttribute("href", url);
-  link.setAttribute("download", `${className}拍照統計記錄_${dateStr}.csv`);
-  document.body.appendChild(link);
+  link.href = URL.createObjectURL(blob);
+  link.download = `${settings.className || '班級'}_拍照統計表.csv`;
   link.click();
-  document.body.removeChild(link);
 }
 
+// --- Rendering Logic ---
 function render() {
   document.getElementById("className").value = settings.className || "";
   document.getElementById("targetPhotos").value = settings.targetPhotos || 3;
+  document.getElementById("headerSubText").textContent = `${settings.className || "未設定班級"} ｜ 目標 ${settings.targetPhotos || 3} 張/人`;
 
   const total = students.length;
   const target = settings.targetPhotos || 3;
@@ -623,17 +748,18 @@ function render() {
   const avg = total ? (photoTotal / total).toFixed(1) : "0";
 
   document.getElementById("progressText").textContent = `已達標 ${doneCount} / ${total} 人`;
-  document.getElementById("photoTotal").textContent = `總張數：${photoTotal} 張`;
-  document.getElementById("averagePhotos").textContent = `${avg} 張/人`;
+  document.getElementById("photoTotal").textContent = photoTotal;
+  document.getElementById("averagePhotos").textContent = avg;
   document.getElementById("percent").textContent = `${pct}%`;
-  document.getElementById("underTargetCount").textContent = `${underTargetCount} 人`;
+  document.getElementById("underTargetCount").textContent = underTargetCount;
   document.getElementById("bar").style.width = `${pct}%`;
 
-  renderList();
+  renderCameraStudentList();
+  renderManageStudentList();
 }
 
-async function renderList() {
-  const box = document.getElementById("studentList");
+async function renderCameraStudentList() {
+  const box = document.getElementById("cameraStudentList");
   const target = settings.targetPhotos || 3;
   let list = [...students];
 
@@ -642,7 +768,7 @@ async function renderList() {
   if (filter === "done") list = list.filter(s => (s.photosCount || 0) >= target);
 
   if (!list.length) {
-    box.innerHTML = '<div class="empty">目前沒有符合條件的小朋友</div>';
+    box.innerHTML = '<div class="empty">沒有符合條件的幼兒</div>';
     return;
   }
 
@@ -651,21 +777,7 @@ async function renderList() {
   for (let s of list) {
     const photos = s.photosCount || 0;
     const isDone = photos >= target;
-    const isZero = photos === 0;
-    const hasDescriptor = s.descriptor && s.descriptor.length === 128;
-
-    let badgeHtml = '';
-    if (isZero) {
-      badgeHtml = '<span class="badge badge-danger">未拍攝</span>';
-    } else if (photos < target) {
-      badgeHtml = `<span class="badge badge-warning">差 ${target - photos} 張</span>`;
-    } else {
-      badgeHtml = '<span class="badge badge-success">已達標</span>';
-    }
-
-    if (hasDescriptor) {
-      badgeHtml += '<span class="badge badge-ai">🤖 AI已錄入</span>';
-    }
+    const avatarUrl = s.avatarBlob ? URL.createObjectURL(s.avatarBlob) : '';
 
     const photoRecords = await db.photos.where("studentId").equals(s.id).toArray();
     let thumbsHtml = '';
@@ -673,28 +785,71 @@ async function renderList() {
       thumbsHtml = '<div class="photo-thumbs">';
       for (let p of photoRecords) {
         if (p.blob) {
-          const imgUrl = URL.createObjectURL(p.blob);
-          thumbsHtml += `<img src="${imgUrl}" class="thumb">`;
+          thumbsHtml += `<img src="${URL.createObjectURL(p.blob)}" class="thumb">`;
         }
       }
       thumbsHtml += '</div>';
     }
 
     const card = document.createElement("div");
-    card.className = `student ${isDone ? "done" : ""} ${!isDone ? "alert-target" : ""}`;
+    card.className = `student-card ${isDone ? "done" : "alert-target"}`;
     card.innerHTML = `
-      <div>
-        <div class="name">${escapeHtml(s.name)} ${badgeHtml}</div>
-        <div class="status">目標：${target} 張｜當前：${photos} 張</div>
-        ${thumbsHtml}
+      <div class="student-header">
+        <div class="avatar" onclick="triggerAvatarSelect(${s.id})">
+          ${avatarUrl ? `<img src="${avatarUrl}">` : '👶'}
+        </div>
+        <div class="student-info">
+          <div class="student-name">
+            ${escapeHtml(s.name)}
+            ${photos >= target ? '<span class="badge badge-success">已達標</span>' : `<span class="badge badge-warning">差 ${target - photos} 張</span>`}
+          </div>
+          <div class="student-sub">目前拍攝：${photos} / ${target} 張</div>
+          ${thumbsHtml}
+        </div>
       </div>
-      <div class="btn-group">
-        <button class="share-btn" onclick="shareStudentPhotos(${s.id})" style="padding: 6px 10px; font-size:12px;">📤 傳送照片</button>
-        <button class="secondary" onclick="triggerEnroll(${s.id})" style="padding: 6px 10px; font-size:12px;">👤 建立人臉</button>
-        <button class="secondary" onclick="removePhoto(${s.id})" ${photos === 0 ? "disabled" : ""}>−</button>
-        <strong style="min-width: 45px; text-align: center;">📸 ${photos}</strong>
-        <button class="check" onclick="addPhoto(${s.id})">＋1 張</button>
-        <button class="secondary" onclick="deleteStudent(${s.id})" style="padding: 6px 10px; font-size:12px;">刪除</button>
+      <div class="student-actions">
+        <button class="share-btn" onclick="shareStudentPhotos(${s.id})">📤 傳送照片</button>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <button onclick="removePhoto(${s.id})" ${photos === 0 ? 'disabled' : ''}>−1</button>
+          <button class="primary" onclick="addPhoto(${s.id})">＋1</button>
+        </div>
+      </div>
+    `;
+    box.appendChild(card);
+  }
+}
+
+async function renderManageStudentList() {
+  const box = document.getElementById("manageStudentList");
+  if (!students.length) {
+    box.innerHTML = '<div class="empty">目前尚無學生資料，請點擊上方新增</div>';
+    return;
+  }
+
+  box.innerHTML = "";
+  for (let s of students) {
+    const avatarUrl = s.avatarBlob ? URL.createObjectURL(s.avatarBlob) : '';
+    const hasDescriptor = s.descriptor && s.descriptor.length === 128;
+
+    const card = document.createElement("div");
+    card.className = "student-card";
+    card.innerHTML = `
+      <div class="student-header">
+        <div class="avatar" onclick="triggerAvatarSelect(${s.id})">
+          ${avatarUrl ? `<img src="${avatarUrl}">` : '📷'}
+        </div>
+        <div class="student-info">
+          <div class="student-name">
+            ${escapeHtml(s.name)}
+            ${hasDescriptor ? '<span class="badge badge-ai">🤖 AI已錄入</span>' : ''}
+          </div>
+          <div class="student-sub">點擊大頭照圖示可設定照片頭像</div>
+        </div>
+      </div>
+      <div class="student-actions">
+        <button onclick="triggerAvatarSelect(${s.id})">🖼️ 設定頭像</button>
+        <button onclick="triggerEnroll(${s.id})">🤖 人臉特徵</button>
+        <button class="danger" onclick="deleteStudent(${s.id})">刪除</button>
       </div>
     `;
     box.appendChild(card);
@@ -707,7 +862,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Service Worker for PWA Offline Caching
+// Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     const swCode = `
@@ -716,14 +871,11 @@ if ('serviceWorker' in navigator) {
       self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
     `;
     const blob = new Blob([swCode], { type: 'application/javascript' });
-    const swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl).catch(() => {});
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
   });
 }
 
 document.getElementById("studentName").addEventListener("keydown", e => { if (e.key === "Enter") addStudent(); });
-document.getElementById("className").addEventListener("keydown", e => { if (e.key === "Enter") saveSettings(); });
-
 window.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
